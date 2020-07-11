@@ -1,2 +1,2 @@
 # GroovyJWT
-Groovy function to parse together a valid JWT.
+Groovy function to parse together a valid JWT. The properties passed to for the body of the payload may be different based on where you're using the JWT, but can easily be added to both the function properties and the map. Likewise, you may not need the current timestamp when the payload is created; some services only require the expiration timestamp and do the math on their end. Lastly, the code leveraging the function to pass the JWT and get an access token back may need to be modified for your API endpoint.
