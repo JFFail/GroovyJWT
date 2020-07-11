@@ -47,6 +47,10 @@ def url = headersJson.URL
 // Create the JWT.
 def jwt = createJWT(slurper, 1800, headersJson.AppID, headersJson.TenantID, headersJson.AppSecret, headersJson.ISS)
 
+// Bundle the JWT into JSON for the payload.
+Map payloadMap = [auth_token: jwt]
+def payloadJson = JsonOutput.toJson(payloadMap)
+
 // Make a connection and pass the JWT for an access token.
 def conn = new URL(url).openConnection()
 conn.setReadTimeout(1500)
@@ -55,12 +59,14 @@ conn.setRequestProperty("Accept", "*/*")
 conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
 conn.doOutput = true
 
+// Create a writer needed to POST..
 def writer = new OutputStreamWriter(conn.outputStream)
-writer.write(jwt)
+writer.write(payloadJson)
 writer.flush()
 writer.close()
 conn.connect()
 
+// Check the response and just print if 200.
 def responseCode = conn.getResponseCode()
 if( responseCode == 200 ) {
     def responseText = conn.content.text
