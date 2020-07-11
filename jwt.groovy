@@ -44,4 +44,29 @@ JsonSlurper slurper = new JsonSlurper()
 def headersJson = slurper.parse(new File("./headers.json"))
 def url = headersJson.URL
 
+// Create the JWT.
 def jwt = createJWT(slurper, 1800, headersJson.AppID, headersJson.TenantID, headersJson.AppSecret, headersJson.ISS)
+
+// Make a connection and pass the JWT for an access token.
+def conn = new URL(url).openConnection()
+conn.setReadTimeout(1500)
+conn.setRequestMethod("POST")
+conn.setRequestProperty("Accept", "*/*")
+conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+conn.doOutput = true
+
+def writer = new OutputStreamWriter(conn.outputStream)
+writer.write(jwt)
+writer.flush()
+writer.close()
+conn.connect()
+
+def responseCode = conn.getResponseCode()
+if( responseCode == 200 ) {
+    def responseText = conn.content.text
+    println responseText
+    conn.disconnect()
+} else {
+    println "ERROR with the HTTP call. Response code was $responseCode."
+    conn.disconnect()
+}
