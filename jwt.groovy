@@ -1,5 +1,7 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import javax.crypto.spec.SecretKeySpec
+import javax.crypto.Mac
 
 // Function to create a JWT.
 def createJWT(JsonSlurper slurper, Integer validSeconds, String appID, String tenantID, String appSecret, String iss) {
@@ -21,8 +23,20 @@ def createJWT(JsonSlurper slurper, Integer validSeconds, String appID, String te
     def payloadJson = JsonOutput.toJson(payload)
 
     // Convert the header and payload to Base64.
-    def headerBase64 = headerJson.bytes.encodeBase64().toString().split("=")[0].replaceAll("\\+", "-").replaceAll("/", "_")
-    def payloadBase64 = payloadJson.bytes.encodeBase64().toString().split("=")[0].replaceAll("\\+", "-").replaceAll("/", "_")
+    def headerBase64 = headerJson.getBytes("UTF-8").encodeBase64().toString().split("=")[0].replaceAll("\\+", "-").replaceAll("/", "_")
+    def payloadBase64 = payloadJson.getBytes("UTF-8").encodeBase64().toString().split("=")[0].replaceAll("\\+", "-").replaceAll("/", "_")
+
+    // Sign the header + payload combination.
+    def toBeSigned = headerBase64 + "." + payloadBase64
+    SecretKeySpec secretKeySpec = new SecretKeySpec(appSecret.getBytes("UTF-8"), "HmacSHA256")
+    Mac mac = Mac.getInstance("HmacSHA256")
+    mac.init(secretKeySpec)
+    byte[] digest = mac.doFinal(toBeSigned.getBytes("UTF-8"))
+    def signature = digest.encodeBase64().toString().split("=")[0].replaceAll("\\+", "-").replaceAll("/", "_")
+
+    // Put it all together for the token.
+    def token = headerBase64 + "." + payloadBase64 + "." + signature
+    token
 }
 
 // Main code. Start with importing the endpoint information.
@@ -30,4 +44,4 @@ JsonSlurper slurper = new JsonSlurper()
 def headersJson = slurper.parse(new File("./headers.json"))
 def url = headersJson.URL
 
-createJWT(slurper, 1800, headersJson.AppID, headersJson.TenantID, headersJson.AppSecret, headersJson.ISS)
+def jwt = createJWT(slurper, 1800, headersJson.AppID, headersJson.TenantID, headersJson.AppSecret, headersJson.ISS)
