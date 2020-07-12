@@ -2,6 +2,13 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import javax.crypto.spec.SecretKeySpec
 import javax.crypto.Mac
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpRequest.BodyPublishers
+import java.net.http.HttpResponse
+import java.net.http.HttpResponse.BodyHandlers
+import java.net.URI
+import java.time.Duration
 
 // Function to create a JWT.
 def createJWT(JsonSlurper slurper, Integer validSeconds, String appID, String tenantID, String appSecret, String iss) {
@@ -51,28 +58,49 @@ def jwt = createJWT(slurper, 1800, headersJson.AppID, headersJson.TenantID, head
 Map payloadMap = [auth_token: jwt]
 def payloadJson = JsonOutput.toJson(payloadMap)
 
-// Make a connection and pass the JWT for an access token.
-def conn = new URL(url).openConnection()
-conn.setReadTimeout(1500)
-conn.setRequestMethod("POST")
-conn.setRequestProperty("Accept", "*/*")
-conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
-conn.doOutput = true
+// Better code using Java11+ HttpClient instead of raw connections.
+def httpClient = HttpClient.newBuilder()
+    .connectTimeout(Duration.ofSeconds(5))
+    .followRedirects(HttpClient.Redirect.NORMAL)
+    .build()
 
-// Create a writer needed to POST..
-def writer = new OutputStreamWriter(conn.outputStream)
-writer.write(payloadJson)
-writer.flush()
-writer.close()
-conn.connect()
+def request = HttpRequest.newBuilder()
+    .POST(HttpRequest.BodyPublishers.ofString(payloadJson))
+    .uri(URI.create(url))
+    .headers("Content-Type", "application/json; charset=utf-8", "Accept", "*/*")
+    .build()
 
-// Check the response and just print if 200.
-def responseCode = conn.getResponseCode()
-if( responseCode == 200 ) {
-    def responseText = conn.content.text
-    println responseText
-    conn.disconnect()
+def response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+
+if( response.statusCode() == 200 ) {
+    println "${response.body()}"
 } else {
-    println "ERROR with the HTTP call. Response code was $responseCode."
-    conn.disconnect()
+    println "ERROR: Status code: ${response.statusCode()}"
 }
+
+// Make a connection and pass the JWT for an access token.
+//def conn = new URL(url).openConnection()
+//conn.setReadTimeout(1500)
+//conn.setRequestMethod("POST")
+//conn.setRequestProperty("Accept", "*/*")
+//conn.setRequestProperty("Content-Type", "application/json; charset=utf-8")
+//conn.doOutput = true
+//
+//// Create a writer needed to POST..
+//def writer = new OutputStreamWriter(conn.outputStream)
+//writer.write(payloadJson)
+//writer.flush()
+//writer.close()
+//conn.connect()
+//
+//// Check the response and just print if 200.
+//def responseCode = conn.getResponseCode()
+//if( responseCode == 200 ) {
+//    def responseText = conn.content.text
+//    println responseText
+//    conn.disconnect()
+//} else {
+//    println "ERROR with the HTTP call. Response code was $responseCode."
+//    conn.disconnect()
+//}
+//
