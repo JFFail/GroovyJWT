@@ -1,0 +1,7 @@
+{
+    "URL": "{url}",
+    "AppID": "{guid}",
+    "TenantID": "{guid}",
+    "AppSecret": "{guid}",
+    "ISS": "{url}"
+}
